@@ -1,6 +1,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Creates Task Definitions for Blue and Green Tasks.
 
+
+Parameters:
+  BlueImage:
+    Type: String
+  GreenImage:
+    Type: String
+
 Resources:
   ServiceLogGroup:
     Type: AWS::Logs::LogGroup
@@ -10,7 +17,7 @@ Resources:
     Properties:
       ContainerDefinitions:
         - Essential: true
-          Image: "111122223333.dkr.ecr.us-east-1.amazonaws.com/nginx:blue"
+          Image: !Ref BlueImage
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -36,7 +43,7 @@ Resources:
     Properties:
       ContainerDefinitions:
         - Essential: true
-          Image: "111122223333.dkr.ecr.us-east-1.amazonaws.com/nginx:green"
+          Image: !Ref GreenImage
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -102,3 +109,15 @@ Resources:
       PolicyName: !Sub ${AWS::StackName}-ServiceTaskExecutionRolePolicy
       Roles:
         - !Ref TaskExecutionRole
+
+Outputs:
+  BlueTaskDefinition:
+    Description: BlueTaskDefinition exported from infra stack
+    Value: !Ref BlueTaskDefinition
+    Export:
+      Name: BlueTaskDefinition
+  GreenTaskDefinition:
+    Description: GreenTaskDefinition exported from infra stack
+    Value: !Ref GreenTaskDefinition
+    Export:
+      Name: GreenTaskDefinition
