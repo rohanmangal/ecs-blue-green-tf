@@ -37,3 +37,5 @@ Step 4:  Delete Original taskset.
 |                          |   |                     |        |   |                     |
 | Test Listener(9000 port) | > | TargetGroup1(blue)  | 100%   | > |                     |
 |                          | > | TargetGroup2(green) | 0%     | > | Replacement taskset |
+
+TODO for canary and linear deployment
