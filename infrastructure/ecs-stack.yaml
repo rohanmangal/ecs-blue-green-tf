@@ -1,56 +1,51 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploy a TaskSet
 
-Parameters: 
-  ECSCluster:
-    Type: String
-    Default: blue-green
-    AllowedValues: 
-      - blue-green
-      - blue-green1
-      - blue-green2
-  ECSService:
-    Type: String
-    Default: bg-svc-example
-    AllowedValues: 
-      - bg-svc-example
-      - bg-svc-example1
-      - bg-svc-example2
-  TaskDefinition:
-    Type: String
-    AllowedValues: 
-      - BlueTaskDefinition
-      - GreenTaskDefinition
-  ServiceTargetGroup:
+Parameters:
+  DeploymentGroup:
     Type: String
     AllowedValues:
-      - arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/exter-BlueS-1UB69WFT25317/a3e2e23672a63ec2
-      - arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/exter-Green-1ADL07GUB01SA/e36ad71e096c7234
-  ServiceSecurityGroup:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Default: sg-111122223333
+      - Blue
+      - Green
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
     Description: Select at two subnets in your selected VPC.  
 
+Conditions:
+  DeploymentGroup: !Equals [ !Ref DeploymentGroup, Blue ]
 
 Resources:
   TaskSet:
     Type: AWS::ECS::TaskSet
     Properties:
-      Cluster: !Ref ECSCluster
-      Service: !Ref ECSService
+      Cluster:
+        Fn::ImportValue: ECSCluster
+      Service:
+        Fn::ImportValue: ECSService
       Scale:
         Unit: PERCENT
         Value: 100
-      TaskDefinition: !Ref TaskDefinition
+      TaskDefinition:
+        Fn::If:
+        - DeploymentGroup
+        - Fn::ImportValue:
+            BlueTaskDefinition
+        - Fn::ImportValue:
+            GreenTaskDefinition
       LaunchType: FARGATE
       LoadBalancers:
         - ContainerName: nginx
           ContainerPort: 80
-          TargetGroupArn: !Ref ServiceTargetGroup
+          TargetGroupArn:
+            Fn::If:
+            - DeploymentGroup
+            - Fn::ImportValue:
+                BlueServiceTargetGroup
+            - Fn::ImportValue:
+                GreenServiceTargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
-          SecurityGroups:   !Ref ServiceSecurityGroup
+          SecurityGroups:
+          - Fn::ImportValue:  ServiceSecurityGroup
           Subnets: !Ref Subnets
