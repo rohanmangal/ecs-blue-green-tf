@@ -1,22 +1,37 @@
 # Flip Commands:
 
-#Variables:
+## Blue Green Deployment(All-at-once):
+###Command to flip traffic from Blue to Green Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=0 ParameterKey=GreenWeight,ParameterValue=100 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Blue
 
-## ALB listener ARN:
-Prod_Listener="arn:aws:elasticloadbalancing:us-east-1:111122223333:listener/app/exter-LoadB-18SYMFEJCT0V4/830a28831234fb0a/fc1fad0edb409503"
-Test_Listener="arn:aws:elasticloadbalancing:us-east-1:111122223333:listener/app/exter-LoadB-18SYMFEJCT0V4/830a28831234fb0a/22ee570f0cb9e91d"
+###Command to flip traffic from Green to Blue Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=100 ParameterKey=GreenWeight,ParameterValue=0 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Green
 
-## ALB targetgroup ARN:
-Green_TargetGroup="arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/exter-Green-1ADL07GUB01SA/e36ad71e096c7234"
-Blue_Targetgroup="arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/exter-BlueS-1UB69WFT25317/a3e2e23672a63ec2"
+## Canary Deployment:
+###Command to move 10% traffic to Green Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=90 ParameterKey=GreenWeight,ParameterValue=10 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Blue
 
+###Command to move remaining 90% traffic to Green Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=0 ParameterKey=GreenWeight,ParameterValue=100 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Blue
 
-## Switch green target group to prod listener:
-aws elbv2 modify-listener --listener-arn $Prod_Listener --default-actions Type=forward,TargetGroupArn=$Green_TargetGroup
+###Command to move 10% traffic to Blue Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=10 ParameterKey=GreenWeight,ParameterValue=90 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Green
 
+###Command to move remaining 90% traffic to Blue Target Group
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=100 ParameterKey=GreenWeight,ParameterValue=0 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Green
 
-## Switch blue target group to secondary listener:
-aws elbv2 modify-listener --listener-arn $Test_Listener --default-actions Type=forward,TargetGroupArn=$Blue_Targetgroup
+## Linear Deployment:
+###Command to move 10% traffic to Green Target Group (will be used with increment of 10%)
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=90 ParameterKey=GreenWeight,ParameterValue=10 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Blue
+
+###Exampe Next 10%
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=80 ParameterKey=GreenWeight,ParameterValue=20 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Blue
+
+###Command to move 10% traffic to Blue Target Group (will be used with increment of 10%)
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=10 ParameterKey=GreenWeight,ParameterValue=90 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Green
+
+###Exampe Next 10%
+aws cloudformation update-stack --stack-name <ecs-extarnal-infra.yml> --use-previous-template  --parameters ParameterKey=BlueWeight,ParameterValue=20 ParameterKey=GreenWeight,ParameterValue=80 ParameterKey=Vpc,UsePreviousValue=true ParameterKey=Subnets,UsePreviousValue=true ParameterKey=TestTargetGroup,ParameterValue=Green
 
 ## Updating Primary Task set in ECS
 aws ecs update-service-primary-task-set --cluster blue-green --service bg-svc-example --primary-task-set <task-set-id-green>
