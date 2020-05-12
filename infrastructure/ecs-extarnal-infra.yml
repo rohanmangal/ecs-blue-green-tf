@@ -1,11 +1,29 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy infra required for blue/green deyployment type using EXTERNAL DeploymentController.
+Description: Deploy infra required for blue/green deyployment type.
 
 Parameters: 
   Vpc:
     Type: AWS::EC2::VPC::Id
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
+  BlueWeight:
+    Type: Number
+    Default: 100
+    MinValue: 0
+    MaxValue: 100
+  GreenWeight:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 100
+  TestTargetGroup:
+    Type: String
+    AllowedValues:
+    -  Blue
+    -  Green
+
+Conditions: 
+  TestTargetGroupTraffic: !Equals [ !Ref TestTargetGroup, Green ]
 
 Resources:
   # ECS resources
@@ -17,6 +35,7 @@ Resources:
         - Name: containerInsights
           Value: disabled
 
+  # ECS Service
   ECSService:
     Type: AWS::ECS::Service
     Properties:
@@ -74,7 +93,7 @@ Resources:
       TargetType: ip
       VpcId: !Ref Vpc
 
-  BlueListener:
+  ProdListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -82,20 +101,26 @@ Resources:
           ForwardConfig:
             TargetGroups:
               - TargetGroupArn: !Ref BlueServiceTargetGroup
-                Weight: 100
+                Weight: !Ref BlueWeight
+              - TargetGroupArn: !Ref GreenServiceTargetGroup
+                Weight: !Ref GreenWeight
       LoadBalancerArn: !Ref LoadBalancer
       Port: 80
       Protocol: HTTP
 
-  GreenListener:
+  TestListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
         - Type: forward
           ForwardConfig:
             TargetGroups:
+              - TargetGroupArn: !Ref BlueServiceTargetGroup
+                Weight:
+                  Fn::If: [TestTargetGroupTraffic, 0, 100]
               - TargetGroupArn: !Ref GreenServiceTargetGroup
-                Weight: 100
+                Weight:
+                  Fn::If: [TestTargetGroupTraffic, 100, 0]
       LoadBalancerArn: !Ref LoadBalancer
       Port: 9000
       Protocol: HTTP
@@ -156,3 +181,29 @@ Outputs:
       - ""
       - - http://
         - !GetAtt LoadBalancer.DNSName
+  ECSCluster:
+    Description: ECSCluster exported from infra stack
+    Value: !Ref ECSCluster
+    Export:
+      Name: ECSCluster
+  ECSService:
+    Description: ECSService exported from infra stack
+    Value: !Ref ECSService
+    Export:
+      Name: ECSService
+  BlueServiceTargetGroup:
+    Description: BlueServiceTargetGroup exported from infra stack
+    Value: !Ref BlueServiceTargetGroup
+    Export:
+      Name: BlueServiceTargetGroup
+  GreenServiceTargetGroup:
+    Description: GreenServiceTargetGroup exported from infra stack
+    Value: !Ref GreenServiceTargetGroup
+    Export:
+      Name: GreenServiceTargetGroup
+  ServiceSecurityGroup:
+    Description: ServiceSecurityGroup exported from infra stack
+    Value:
+      Fn::GetAtt:  [ServiceSecurityGroup, GroupId]
+    Export:
+      Name: ServiceSecurityGroup
